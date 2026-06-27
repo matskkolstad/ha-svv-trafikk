@@ -164,7 +164,9 @@ class DatexClient:
                 location = _find_text(
                     rec, "locationDescription", "roadName", "areaName"
                 )
-                road = _find_text(rec, "roadNumber", "roadName")
+                # Prioriter veinummer (E39, R9) over veinavn for konsistent
+                # filtrering og veivalg; fall tilbake til navn kun om nr. mangler.
+                road = _find_text(rec, "roadNumber") or _find_text(rec, "roadName")
                 county = _find_county(rec)
 
                 lat = _find_text(rec, "latitude")
@@ -203,6 +205,33 @@ class DatexClient:
         _LOGGER.debug("DATEX: tolket %d hendelser", len(incidents))
         return incidents
 
+    async def async_get_county_roads(self, county: str) -> list[tuple[str, int]]:
+        """List distinkte veinummer som har veimeldinger i et gitt fylke.
+
+        Brukes av oppsettflyten til å la brukeren velge hvilke veier området
+        skal omfatte. Returnerer en liste av (veinummer, antall hendelser),
+        sortert synkende på antall. Henter rått snapshot og er bevisst lett –
+        vi bygger ikke fullstendige Incident-objekter.
+        """
+        root = await self._get_xml(DATEX_SITUATION_URL)
+        wanted = county.strip().lower()
+        counts: dict[str, int] = {}
+        for rec in root.iter():
+            if _localname(rec.tag) != "situationRecord":
+                continue
+            rec_county = _find_county(rec)
+            if not rec_county or wanted not in rec_county.strip().lower():
+                continue
+            road = _find_text(rec, "roadNumber") or _find_text(rec, "roadName")
+            if not road:
+                continue
+            counts[road] = counts.get(road, 0) + 1
+        roads = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        _LOGGER.debug(
+            "DATEX: fant %d distinkte veier i fylket '%s'", len(roads), county
+        )
+        return roads
+
     # ------------------------------------------------------------------
     # Webkameraer
     # ------------------------------------------------------------------
@@ -225,6 +254,7 @@ class DatexClient:
                     latitude=float(lat) if lat else None,
                     longitude=float(lon) if lon else None,
                     road=_find_text(site, "roadNumber"),
+                    county=_find_county(site),
                 )
             )
         _LOGGER.debug("DATEX: tolket %d webkameraer", len(cams))

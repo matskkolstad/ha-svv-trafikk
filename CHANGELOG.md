@@ -4,6 +4,24 @@ Alle vesentlige endringer i dette prosjektet dokumenteres her.
 Formatet følger [Keep a Changelog](https://keepachangelog.com/),
 og prosjektet bruker [semantisk versjonering](https://semver.org/lang/no/).
 
+## [0.3.0] – 2026-06-28
+
+### Lagt til
+- Veivalg for fylke-områder: etter at du har valgt fylke, kan du velge hvilke
+  veier du vil hente data for, fra en liste som viser veiene som faktisk har
+  veimeldinger i fylket akkurat nå (med antall). La valget stå tomt for å ta
+  med alle veier i fylket.
+- Listen oppdateres automatisk – både i oppsettet og under Innstillinger henter
+  den en fersk oversikt over veier med data.
+- Fylke velges nå fra en nedtrekksliste over de 15 norske fylkene i stedet for
+  fritekst.
+
+### Endret
+- Webkamera filtreres nå korrekt på fylke (leses fra `namedArea`), slik at et
+  fylke-område ikke lenger tar med kameraer fra hele landet.
+- Veinummer prioriteres over veinavn ved tolking, så samme vei ikke splittes i
+  flere oppføringer.
+
 ## [0.2.1] – 2026-06-27
 
 ### Rettet

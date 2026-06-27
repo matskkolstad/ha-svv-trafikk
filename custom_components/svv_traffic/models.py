@@ -114,6 +114,7 @@ class Webcam:
     latitude: float | None = None
     longitude: float | None = None
     road: str | None = None
+    county: str | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -123,6 +124,7 @@ class Webcam:
             "latitude": self.latitude,
             "longitude": self.longitude,
             "road": self.road,
+            "county": self.county,
         }
 
 

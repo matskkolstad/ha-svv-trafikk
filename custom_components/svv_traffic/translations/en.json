@@ -30,6 +30,13 @@
           "datex_username": "DATEX username",
           "datex_password": "DATEX password"
         }
+      },
+      "roads": {
+        "title": "Select roads",
+        "description": "These roads currently have road messages in {county} (count in parentheses). Choose which ones to monitor. Leave empty to include all roads in the county.",
+        "data": {
+          "roads": "Roads"
+        }
       }
     },
     "error": {
@@ -45,7 +52,8 @@
           "data_types": "Enabled data types",
           "scan_interval": "Update interval (seconds)",
           "datex_username": "DATEX username",
-          "datex_password": "DATEX password"
+          "datex_password": "DATEX password",
+          "roads": "Roads (empty = all roads in the county)"
         }
       }
     }

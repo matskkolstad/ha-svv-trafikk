@@ -30,6 +30,13 @@
           "datex_username": "DATEX-brukernavn",
           "datex_password": "DATEX-passord"
         }
+      },
+      "roads": {
+        "title": "Velg veier",
+        "description": "Disse veiene har veimeldinger i {county} akkurat nå (antall i parentes). Velg hvilke du vil følge med på. La alt stå tomt for å ta med alle veier i fylket.",
+        "data": {
+          "roads": "Veier"
+        }
       }
     },
     "error": {
@@ -45,7 +52,8 @@
           "data_types": "Aktiverte datatyper",
           "scan_interval": "Oppdateringsintervall (sekunder)",
           "datex_username": "DATEX-brukernavn",
-          "datex_password": "DATEX-passord"
+          "datex_password": "DATEX-passord",
+          "roads": "Veier (tom = alle veier i fylket)"
         }
       }
     }

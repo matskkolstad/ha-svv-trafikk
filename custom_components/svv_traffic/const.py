@@ -25,6 +25,7 @@ CONF_AREA_TYPE: Final = "area_type"          # "county" | "road" | "radius"
 CONF_COUNTY: Final = "county"                # fylkesnummer/-navn
 CONF_MUNICIPALITY: Final = "municipality"
 CONF_ROAD: Final = "road"                    # f.eks. "E18", "Rv9"
+CONF_ROADS: Final = "roads"                  # valgte veinummer i et fylke (liste)
 CONF_LATITUDE: Final = "latitude"
 CONF_LONGITUDE: Final = "longitude"
 CONF_RADIUS_KM: Final = "radius_km"
@@ -44,6 +45,26 @@ AREA_TYPE_COUNTY: Final = "county"
 AREA_TYPE_ROAD: Final = "road"
 AREA_TYPE_RADIUS: Final = "radius"
 AREA_TYPES: Final = [AREA_TYPE_COUNTY, AREA_TYPE_ROAD, AREA_TYPE_RADIUS]
+
+# Norges 15 fylker (2024-) – brukes som nedtrekksvalg for fylke-områdetype.
+# Navnene matcher det SVV bruker i DATEX (namedArea/areaName).
+NORWEGIAN_COUNTIES: Final = [
+    "Agder",
+    "Akershus",
+    "Buskerud",
+    "Finnmark",
+    "Innlandet",
+    "Møre og Romsdal",
+    "Nordland",
+    "Oslo",
+    "Rogaland",
+    "Telemark",
+    "Troms",
+    "Trøndelag",
+    "Vestfold",
+    "Vestland",
+    "Østfold",
+]
 
 # ---------------------------------------------------------------------------
 # Datatyper – hver tilsvarer en kilde og styrer hvilke entiteter som lages.

@@ -39,11 +39,13 @@ from .const import (
     CONF_LONGITUDE,
     CONF_RADIUS_KM,
     CONF_ROAD,
+    CONF_ROADS,
     CONF_SCAN_INTERVAL,
     CONF_USE_DEMO,
     DATA_TYPE_REQUIRES_DATEX,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    NORWEGIAN_COUNTIES,
 )
 
 
@@ -107,10 +109,12 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             if needs_datex:
                 return await self.async_step_datex()
-            return self._finish()
+            return await self._after_credentials()
 
         if area_type == AREA_TYPE_COUNTY:
-            schema = vol.Schema({vol.Required(CONF_COUNTY, default="Agder"): str})
+            schema = vol.Schema(
+                {vol.Required(CONF_COUNTY, default="Agder"): vol.In(NORWEGIAN_COUNTIES)}
+            )
         elif area_type == AREA_TYPE_ROAD:
             schema = vol.Schema({vol.Required(CONF_ROAD, default="E18"): str})
         else:  # radius
@@ -143,7 +147,7 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if not username and not password:
                 # Brukeren hopper over – fortsett uten DATEX
-                return self._finish()
+                return await self._after_credentials()
 
             # Verifiser påloggingen
             session = async_get_clientsession(self.hass)
@@ -157,7 +161,7 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 self._base[CONF_DATEX_USERNAME] = username
                 self._base[CONF_DATEX_PASSWORD] = password
-                return self._finish()
+                return await self._after_credentials()
 
         schema = vol.Schema(
             {
@@ -167,6 +171,54 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(
             step_id="datex", data_schema=schema, errors=errors
+        )
+
+    async def _after_credentials(self) -> ConfigFlowResult:
+        """Etter at evt. DATEX-creds er kjent: vis veivalg for fylke-områder."""
+        if (
+            self._base.get(CONF_AREA_TYPE) == AREA_TYPE_COUNTY
+            and self._base.get(CONF_DATEX_USERNAME)
+            and self._base.get(CONF_DATEX_PASSWORD)
+        ):
+            return await self.async_step_roads()
+        return self._finish()
+
+    async def async_step_roads(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """La brukeren velge hvilke veier i fylket området skal omfatte.
+
+        Listen bygges fra veier som faktisk har veimeldinger i fylket akkurat
+        nå. Velges ingen, tas alle veier i fylket med (ingen innsnevring).
+        """
+        if user_input is not None:
+            self._base[CONF_ROADS] = user_input.get(CONF_ROADS, [])
+            return self._finish()
+
+        session = async_get_clientsession(self.hass)
+        client = DatexClient(
+            session,
+            self._base[CONF_DATEX_USERNAME],
+            self._base[CONF_DATEX_PASSWORD],
+        )
+        try:
+            roads = await client.async_get_county_roads(self._base[CONF_COUNTY])
+        except SvvApiError:
+            roads = []
+
+        if not roads:
+            # Ingen veier å velge mellom – hopp over og ta med alt i fylket
+            self._base[CONF_ROADS] = []
+            return self._finish()
+
+        options = {road: f"{road} ({count})" for road, count in roads}
+        schema = vol.Schema(
+            {vol.Optional(CONF_ROADS, default=[]): cv_multi_select(options)}
+        )
+        return self.async_show_form(
+            step_id="roads",
+            data_schema=schema,
+            description_placeholders={"county": self._base[CONF_COUNTY]},
         )
 
     def _finish(self) -> ConfigFlowResult:
@@ -193,30 +245,74 @@ class SvvOptionsFlow(OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         current = {**self._entry.data, **self._entry.options}
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_DATA_TYPES,
-                    default=current.get(CONF_DATA_TYPES, ALL_DATA_TYPES),
-                ): cv_multi_select(_data_type_selector()),
-                vol.Optional(
+        schema_dict: dict[Any, Any] = {
+            vol.Required(
+                CONF_DATA_TYPES,
+                default=current.get(CONF_DATA_TYPES, ALL_DATA_TYPES),
+            ): cv_multi_select(_data_type_selector()),
+            vol.Optional(
+                CONF_SCAN_INTERVAL,
+                default=current.get(
                     CONF_SCAN_INTERVAL,
-                    default=current.get(
-                        CONF_SCAN_INTERVAL,
-                        int(DEFAULT_SCAN_INTERVAL.total_seconds()),
-                    ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
+                    int(DEFAULT_SCAN_INTERVAL.total_seconds()),
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
+            vol.Optional(
+                CONF_DATEX_USERNAME,
+                default=current.get(CONF_DATEX_USERNAME, ""),
+            ): str,
+            vol.Optional(
+                CONF_DATEX_PASSWORD,
+                default=current.get(CONF_DATEX_PASSWORD, ""),
+            ): str,
+        }
+
+        # Veivalg for fylke-områder med DATEX: hent en fersk liste over veier
+        # som har data nå, slik at brukeren kan snevre inn (tom = alle veier).
+        road_options = await self._build_road_options(current)
+        if road_options is not None:
+            schema_dict[
                 vol.Optional(
-                    CONF_DATEX_USERNAME,
-                    default=current.get(CONF_DATEX_USERNAME, ""),
-                ): str,
-                vol.Optional(
-                    CONF_DATEX_PASSWORD,
-                    default=current.get(CONF_DATEX_PASSWORD, ""),
-                ): str,
-            }
+                    CONF_ROADS, default=current.get(CONF_ROADS, [])
+                )
+            ] = cv_multi_select(road_options)
+
+        return self.async_show_form(
+            step_id="init", data_schema=vol.Schema(schema_dict)
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+
+    async def _build_road_options(self, current: dict) -> dict | None:
+        """Bygg veivalg-opsjoner for fylke-områder, ellers None.
+
+        Returnerer None når veivalg ikke er aktuelt (ikke fylke, eller ingen
+        DATEX-pålogging). Ved feil under henting vises iallfall de allerede
+        valgte veiene, slik at man kan fjerne dem.
+        """
+        if (
+            current.get(CONF_AREA_TYPE) != AREA_TYPE_COUNTY
+            or not current.get(CONF_DATEX_USERNAME)
+            or not current.get(CONF_DATEX_PASSWORD)
+        ):
+            return None
+
+        session = async_get_clientsession(self.hass)
+        client = DatexClient(
+            session,
+            current[CONF_DATEX_USERNAME],
+            current[CONF_DATEX_PASSWORD],
+        )
+        try:
+            roads = await client.async_get_county_roads(
+                current.get(CONF_COUNTY, "")
+            )
+        except SvvApiError:
+            roads = []
+
+        options = {road: f"{road} ({count})" for road, count in roads}
+        # Sørg for at allerede valgte veier alltid er valgbare
+        for road in current.get(CONF_ROADS, []) or []:
+            options.setdefault(road, road)
+        return options or None
 
 
 # Liten hjelper: HA tilbyr cv.multi_select, men vi importerer trygt her.

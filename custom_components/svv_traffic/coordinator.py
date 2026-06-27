@@ -206,6 +206,7 @@ class SvvDataUpdateCoordinator(DataUpdateCoordinator[AreaData]):
                     if matches_area(
                         self.config,
                         road=cam.road,
+                        county=cam.county,
                         latitude=cam.latitude,
                         longitude=cam.longitude,
                     ):

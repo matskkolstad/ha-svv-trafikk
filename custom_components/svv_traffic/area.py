@@ -17,6 +17,7 @@ from .const import (
     CONF_LONGITUDE,
     CONF_RADIUS_KM,
     CONF_ROAD,
+    CONF_ROADS,
 )
 
 
@@ -64,13 +65,24 @@ def matches_area(
 
     if area_type == AREA_TYPE_COUNTY:
         wanted = str(config.get(CONF_COUNTY, "")).strip().lower()
-        if not wanted:
-            return True
-        have = str(county or "").strip().lower()
-        if not have:
+        if wanted:
+            have = str(county or "").strip().lower()
             # Mangler fylkesinfo på objektet – inkluder heller enn å skjule
-            return True
-        return wanted in have
+            if have and wanted not in have:
+                return False
+        # Valgfri innsnevring til bestemte veier i fylket. Tom liste = alle veier.
+        roads = config.get(CONF_ROADS) or []
+        if roads:
+            have_road = _norm_road(road)
+            if not have_road:
+                # Uten veinummer kan vi ikke avgjøre – inkluder (fail-open)
+                return True
+            wanted_roads = {_norm_road(r) for r in roads}
+            return any(
+                have_road == w or have_road.startswith(w) or w in have_road
+                for w in wanted_roads
+            )
+        return True
 
     if area_type == AREA_TYPE_ROAD:
         wanted = _norm_road(config.get(CONF_ROAD))
