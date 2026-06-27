@@ -5,3 +5,8 @@ __pycache__/
 .vscode/
 .idea/
 *.log
+
+# DATEX-pålogging – må ALDRI committes
+tools/datex_secrets.env
+*secrets*
+*.env

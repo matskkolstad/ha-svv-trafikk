@@ -45,6 +45,32 @@ def _find_text(elem: ET.Element, *names: str) -> str | None:
     return None
 
 
+def _find_county(rec: ET.Element) -> str | None:
+    """Hent fylkesnavn fra DATEX ``namedArea``-blokken.
+
+    Norske situasjonsdata har ikke noe eget ``countyName``/``county``-felt.
+    Fylket ligger i ``<namedArea>`` med ``subdivisionType=county``, og selve
+    navnet er nestet i ``namedArea/areaName/values/value`` (f.eks. "Agder").
+    Vi foretrekker county-blokken, men faller tilbake til et evt. kommunenavn
+    dersom fylke mangler.
+    """
+    fallback: str | None = None
+    for na in rec.iter():
+        if _localname(na.tag) != "namedArea":
+            continue
+        subtype = _find_text(na, "subdivisionType")
+        name: str | None = None
+        for child in na.iter():
+            if _localname(child.tag) == "areaName":
+                name = _find_text(child, "value")
+                break
+        if subtype == "county" and name:
+            return name
+        if name and fallback is None:
+            fallback = name
+    return fallback
+
+
 def _parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -139,7 +165,7 @@ class DatexClient:
                     rec, "locationDescription", "roadName", "areaName"
                 )
                 road = _find_text(rec, "roadNumber", "roadName")
-                county = _find_text(rec, "countyName", "county")
+                county = _find_county(rec)
 
                 lat = _find_text(rec, "latitude")
                 lon = _find_text(rec, "longitude")

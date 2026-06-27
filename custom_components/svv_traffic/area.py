@@ -66,7 +66,11 @@ def matches_area(
         wanted = str(config.get(CONF_COUNTY, "")).strip().lower()
         if not wanted:
             return True
-        return wanted in str(county or "").strip().lower()
+        have = str(county or "").strip().lower()
+        if not have:
+            # Mangler fylkesinfo på objektet – inkluder heller enn å skjule
+            return True
+        return wanted in have
 
     if area_type == AREA_TYPE_ROAD:
         wanted = _norm_road(config.get(CONF_ROAD))

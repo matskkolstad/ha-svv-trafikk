@@ -165,6 +165,7 @@ class SvvDataUpdateCoordinator(DataUpdateCoordinator[AreaData]):
         if DATA_INCIDENTS in enabled or DATA_ROAD_CLOSURES in enabled:
             try:
                 incidents = await self._datex.async_get_situations()
+                matched = 0
                 for inc in incidents:
                     if not matches_area(
                         self.config,
@@ -174,10 +175,20 @@ class SvvDataUpdateCoordinator(DataUpdateCoordinator[AreaData]):
                         longitude=inc.longitude,
                     ):
                         continue
+                    matched += 1
                     if inc.is_closure and DATA_ROAD_CLOSURES in enabled:
                         data.closures.append(inc)
                     elif DATA_INCIDENTS in enabled:
                         data.incidents.append(inc)
+                _LOGGER.debug(
+                    "DATEX veimeldinger for '%s': %d hentet, %d innenfor området "
+                    "(%d stengninger, %d meldinger)",
+                    self.config.get(CONF_AREA_NAME, "Område"),
+                    len(incidents),
+                    matched,
+                    len(data.closures),
+                    len(data.incidents),
+                )
             except SvvApiError as err:
                 data.errors.append(f"Veimeldinger: {err}")
 
