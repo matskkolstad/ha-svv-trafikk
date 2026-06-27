@@ -1,0 +1,61 @@
+name: Feilrapport
+description: Rapporter en feil i SVV Trafikk
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Takk for at du tar deg tid til å rapportere en feil. Fyll ut feltene under så godt du kan.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Hva skjedde?
+      description: Beskriv feilen og hva du forventet skulle skje.
+      placeholder: Da jeg ... skjedde ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steg for å gjenskape
+      placeholder: |
+        1. Gå til ...
+        2. Klikk på ...
+        3. Se feil
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant-versjon
+      placeholder: "2025.6.0"
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Versjon av SVV Trafikk
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: data-source
+    attributes:
+      label: Hvilken datakilde gjelder det?
+      options:
+        - Veimeldinger / stengninger (DATEX)
+        - Trafikkmengde (åpent API)
+        - Reisetid / kø (DATEX)
+        - Webkamera (DATEX)
+        - Kjøreforhold / vær (DATEX)
+        - Kortet / visningen
+        - Demomodus
+        - Annet / vet ikke
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevante logger
+      description: Lim inn loggutdrag fra Innstillinger → System → Logger (fjern sensitiv info).
+      render: shell

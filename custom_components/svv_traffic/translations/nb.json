@@ -1,0 +1,66 @@
+{
+  "title": "SVV Trafikk",
+  "config": {
+    "step": {
+      "user": {
+        "title": "SVV Trafikk – nytt område",
+        "description": "Sett opp et område du vil følge med på. Du kan legge til flere områder senere.",
+        "data": {
+          "area_name": "Navn på området",
+          "area_type": "Områdetype (fylke, veinummer eller radius)",
+          "data_types": "Hvilke data vil du hente?",
+          "use_demo": "Demomodus (testdata uten pålogging)"
+        }
+      },
+      "area": {
+        "title": "Områdedetaljer",
+        "description": "Angi hva området skal dekke.",
+        "data": {
+          "county": "Fylke",
+          "road": "Veinummer (f.eks. E18, Rv9)",
+          "latitude": "Breddegrad",
+          "longitude": "Lengdegrad",
+          "radius_km": "Radius (km)"
+        }
+      },
+      "datex": {
+        "title": "DATEX-pålogging (valgfritt)",
+        "description": "Veimeldinger, webkamera, reisetid og vær krever DATEX-tilgang fra Statens vegvesen. La feltene stå tomme for å hoppe over – du kan legge dem til senere under Innstillinger.",
+        "data": {
+          "datex_username": "DATEX-brukernavn",
+          "datex_password": "DATEX-passord"
+        }
+      }
+    },
+    "error": {
+      "auth": "Påloggingen ble avvist. Sjekk brukernavn, passord og at IP-adressen din er registrert hos SVV.",
+      "cannot_connect": "Klarte ikke å koble til DATEX. Prøv igjen senere."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Innstillinger for SVV Trafikk",
+        "data": {
+          "data_types": "Aktiverte datatyper",
+          "scan_interval": "Oppdateringsintervall (sekunder)",
+          "datex_username": "DATEX-brukernavn",
+          "datex_password": "DATEX-passord"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "overall_status": { "name": "Status" },
+      "incident_count": { "name": "Antall veimeldinger" },
+      "closure_count": { "name": "Antall stengninger" },
+      "traffic_volume": { "name": "Trafikkmengde" },
+      "max_delay": { "name": "Største forsinkelse" }
+    },
+    "binary_sensor": {
+      "road_closed": { "name": "Stengt vei/tunnel" },
+      "has_incidents": { "name": "Aktive veimeldinger" }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+refresh:
+  name: Oppdater data
+  description: >-
+    Tvinger en umiddelbar oppdatering av trafikkdata fra Statens vegvesen.
+  fields:
+    entry_id:
+      name: Område (entry_id)
+      description: >-
+        Valgfritt. Hvis utelatt oppdateres alle konfigurerte områder.
+      required: false
+      selector:
+        text:
+
+get_incidents:
+  name: Hent hendelser
+  description: >-
+    Returnerer gjeldende veimeldinger og stengninger for alle områder.
+    Nyttig i automasjoner og scripts (response_variable).

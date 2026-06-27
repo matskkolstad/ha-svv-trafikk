@@ -1,0 +1,66 @@
+{
+  "title": "SVV Traffic",
+  "config": {
+    "step": {
+      "user": {
+        "title": "SVV Traffic – new area",
+        "description": "Set up an area to monitor. You can add more areas later.",
+        "data": {
+          "area_name": "Area name",
+          "area_type": "Area type (county, road number or radius)",
+          "data_types": "Which data do you want to fetch?",
+          "use_demo": "Demo mode (test data, no login required)"
+        }
+      },
+      "area": {
+        "title": "Area details",
+        "description": "Specify what the area should cover.",
+        "data": {
+          "county": "County",
+          "road": "Road number (e.g. E18, Rv9)",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "radius_km": "Radius (km)"
+        }
+      },
+      "datex": {
+        "title": "DATEX login (optional)",
+        "description": "Road messages, webcams, travel time and weather require DATEX access from the Norwegian Public Roads Administration. Leave the fields empty to skip – you can add them later under Settings.",
+        "data": {
+          "datex_username": "DATEX username",
+          "datex_password": "DATEX password"
+        }
+      }
+    },
+    "error": {
+      "auth": "Login was rejected. Check the username, password and that your IP address is registered with NPRA.",
+      "cannot_connect": "Could not connect to DATEX. Please try again later."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SVV Traffic settings",
+        "data": {
+          "data_types": "Enabled data types",
+          "scan_interval": "Update interval (seconds)",
+          "datex_username": "DATEX username",
+          "datex_password": "DATEX password"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "overall_status": { "name": "Status" },
+      "incident_count": { "name": "Incident count" },
+      "closure_count": { "name": "Closure count" },
+      "traffic_volume": { "name": "Traffic volume" },
+      "max_delay": { "name": "Max delay" }
+    },
+    "binary_sensor": {
+      "road_closed": { "name": "Road/tunnel closed" },
+      "has_incidents": { "name": "Active incidents" }
+    }
+  }
+}

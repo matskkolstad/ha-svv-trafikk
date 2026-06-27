@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Lag og last opp release-zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Oppdater versjon i manifest
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version#v}"
+          jq --arg v "$version" '.version = $v' \
+            custom_components/svv_traffic/manifest.json > tmp && \
+            mv tmp custom_components/svv_traffic/manifest.json
+
+      - name: Zip integrasjonen
+        run: |
+          cd custom_components/svv_traffic
+          zip -r ../../svv_traffic.zip .
+
+      - name: Last opp til release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: svv_traffic.zip

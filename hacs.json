@@ -1,0 +1,9 @@
+{
+  "name": "SVV Trafikk",
+  "content_in_root": false,
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "svv_traffic.zip",
+  "homeassistant": "2024.4.0",
+  "country": ["NO"]
+}

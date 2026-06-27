@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Spørsmål og diskusjon
+    url: https://github.com/matskkolstad/ha-svv-trafikk/discussions
+    about: Still spørsmål eller diskuter bruk her.
+  - name: DATEX-tilgang hos Statens vegvesen
+    url: https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/hva-er-datex/bestille-tilgang-til-datex/
+    about: Søk om DATEX-brukernavn og passord her (gjelder ikke selve integrasjonen).
