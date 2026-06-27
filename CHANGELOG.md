@@ -4,6 +4,20 @@ Alle vesentlige endringer i dette prosjektet dokumenteres her.
 Formatet følger [Keep a Changelog](https://keepachangelog.com/),
 og prosjektet bruker [semantisk versjonering](https://semver.org/lang/no/).
 
+## [0.2.1] – 2026-06-27
+
+### Rettet
+- Fylkesfiltrering virket ikke for DATEX-veimeldinger: norske
+  situasjonsdata har ikke et `countyName`/`county`-felt, så fylket ble aldri
+  funnet og alle hendelser ble filtrert bort. Fylket leses nå korrekt fra
+  `namedArea` (subdivisionType=county).
+- Fylkesfilteret er nå «fail-open»: hendelser uten fylkesinfo vises i stedet
+  for å skjules.
+
+### Lagt til
+- Debug-logging i coordinatoren for antall hendelser hentet vs. innenfor
+  området, og et diagnoseskript (`tools/datex_inspect.py`) for DATEX-XML.
+
 ## [0.2.0] – 2026-06-27
 
 ### Lagt til
