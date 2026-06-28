@@ -36,14 +36,19 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def _norm_road(value: str | None) -> str:
     """Normaliser veinummer for sammenligning (fjern mellomrom, store bokstaver).
 
-    Eksempler: "E 18" -> "E18", "Rv 9" -> "RV9", "Ev18" -> "E18".
+    De to datakildene bruker ulike koder for samme vei: DATEX skriver
+    "E18"/"R9"/"F415", mens Trafikkdata skriver "EV18"/"RV9"/"FV415"/"KV…".
+    Vi forener dem ved å droppe "V" i to-bokstavs prefiks (EV/RV/FV/KV ->
+    E/R/F/K). Trafikkdata har dessuten et halefelt ("EV18 S20D1 m7352"); det
+    beholdes etter normalisering og håndteres av startswith-matching.
+
+    Eksempler: "E 18" -> "E18", "Rv 9" -> "R9", "EV18 S2D1 m9" -> "E18S2D1M9".
     """
     if not value:
         return ""
     v = value.upper().replace(" ", "").replace(".", "")
-    # SVV bruker både "EV18" og "E18" for europaveger
-    if v.startswith("EV"):
-        v = "E" + v[2:]
+    if len(v) >= 2 and v[0] in ("E", "R", "F", "K") and v[1] == "V":
+        v = v[0] + v[2:]
     return v
 
 

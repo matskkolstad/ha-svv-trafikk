@@ -18,6 +18,7 @@
         "data": {
           "county": "Fylke",
           "road": "Veinummer (f.eks. E18, Rv9)",
+          "location": "Velg punkt og radius på kartet",
           "latitude": "Breddegrad",
           "longitude": "Lengdegrad",
           "radius_km": "Radius (km)"

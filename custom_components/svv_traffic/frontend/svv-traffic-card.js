@@ -19,10 +19,15 @@
  *   layout: vertical | horizontal      # standard: vertical
  *   show_map: true | false             # standard: false
  *   map_height: 220                     # px, valgfritt
+ *   selected_points: []                 # valgfritt; startutvalg av datapunkter
  *   sections: [status, closures, incidents, travel_time,
  *              traffic_volume, weather, webcams]
  *   max_items: 5
  *   show_empty: false
+ *
+ * Med show_map: true vises alle datapunkter som markører på kartet. Klikk en
+ * markør for å velge punkter; "Vis kun valgte" filtrerer kortet til utvalget.
+ * Utvalget huskes per nettleser (localStorage).
  */
 
 /* ---- Ikonsett: rene SVG-strektegninger (24x24, currentColor) ---- */
@@ -140,6 +145,8 @@ class SvvTrafficCard extends HTMLElement {
     this._map = null;
     this._mapMarkers = [];
     this._mapKey = "";
+    this._selection = null;   // Set med valgte punkt-nøkler (lastes fra localStorage)
+    this._filterOnly = false; // "Vis kun valgte"-modus
   }
 
   setConfig(config) {
@@ -153,8 +160,12 @@ class SvvTrafficCard extends HTMLElement {
       layout: "vertical",
       show_map: false,
       map_height: 220,
+      selected_points: [],
       ...config,
     };
+    // Last lagret kartutvalg for denne entiteten (per nettleser)
+    this._selection = this._loadSelection();
+    this._filterOnly = this._loadFilterMode();
     // Kartet bygges utenom innerHTML, så vi nullstiller referansen ved ny config
     this._destroyMap();
     this._render();
@@ -179,6 +190,62 @@ class SvvTrafficCard extends HTMLElement {
 
   _statusMeta(status) { return STATUS_META[status] || STATUS_META.unknown; }
 
+  /* ---- Kartutvalg (lagres per entitet i localStorage) ---- */
+  _selStorageKey() { return `svv_sel_${this._config.entity}`; }
+  _filterStorageKey() { return `svv_filter_${this._config.entity}`; }
+
+  _loadSelection() {
+    try {
+      const raw = window.localStorage.getItem(this._selStorageKey());
+      if (raw) return new Set(JSON.parse(raw));
+    } catch (e) { /* localStorage utilgjengelig */ }
+    return new Set(this._config.selected_points || []);
+  }
+
+  _saveSelection() {
+    try {
+      window.localStorage.setItem(
+        this._selStorageKey(), JSON.stringify([...this._selection]));
+    } catch (e) { /* ignorér */ }
+  }
+
+  _loadFilterMode() {
+    try { return window.localStorage.getItem(this._filterStorageKey()) === "1"; }
+    catch (e) { return false; }
+  }
+
+  _saveFilterMode() {
+    try {
+      window.localStorage.setItem(this._filterStorageKey(), this._filterOnly ? "1" : "0");
+    } catch (e) { /* ignorér */ }
+  }
+
+  // Stabil nøkkel for et datapunkt på tvers av oppdateringer
+  _pointKey(kind, p) { return `${kind}:${p.id != null ? p.id : (p.name || "")}`; }
+
+  _togglePoint(keyStr) {
+    if (!this._selection) this._selection = new Set();
+    if (this._selection.has(keyStr)) this._selection.delete(keyStr);
+    else this._selection.add(keyStr);
+    this._saveSelection();
+  }
+
+  // Returnerer data filtrert til valgte punkter når "vis kun valgte" er på.
+  _applyFilter(data) {
+    if (!data) return data;
+    const sel = this._selection;
+    if (!this._filterOnly || !sel || sel.size === 0) return data;
+    const keep = (kind, list) =>
+      (list || []).filter(p => sel.has(this._pointKey(kind, p)));
+    return {
+      ...data,
+      closures: keep("closure", data.closures),
+      incidents: keep("incident", data.incidents),
+      traffic_volume: keep("volume", data.traffic_volume),
+      webcams: keep("webcam", data.webcams),
+    };
+  }
+
   _render() {
     if (!this._hass || !this._config.entity) return;
     const ent = this._hass.states[this._config.entity];
@@ -198,18 +265,23 @@ class SvvTrafficCard extends HTMLElement {
     const sections = this._config.sections;
     const horizontal = this._config.layout === "horizontal";
 
-    const parts = [];
-    parts.push(this._renderHeader(title, meta, overall, data));
+    // Kartet viser ALLE punkter (utvelgingsflate); listene filtreres til valgte.
+    const displayData = this._applyFilter(data);
 
-    // Kart-container (fylles av Leaflet etter render)
+    const parts = [];
+    parts.push(this._renderHeader(title, meta, overall, displayData));
+
+    // Kart-container (fylles av den interne rendereren etter render)
     if (this._config.show_map) {
       parts.push(`<div class="map-wrap" style="height:${this._config.map_height}px">
           <div class="map" id="svvmap"></div>
         </div>`);
+      parts.push(this._renderMapToolbar(data));
     }
 
     const body = [];
-    if (data) {
+    if (displayData) {
+      const data = displayData;
       if (sections.includes("closures"))       body.push(this._renderIncidentList(data.closures, "closures"));
       if (sections.includes("incidents"))      body.push(this._renderIncidentList(data.incidents, "incidents"));
       if (sections.includes("travel_time"))    body.push(this._renderTravelTimes(data.travel_times));
@@ -403,15 +475,51 @@ class SvvTrafficCard extends HTMLElement {
   _mapPoints(data) {
     if (!data) return [];
     const pts = [];
-    (data.closures || []).forEach(c => {
-      if (c.latitude != null && c.longitude != null)
-        pts.push({ ...c, _kind: "closure" });
+    const add = (list, kind) => (list || []).forEach(p => {
+      if (p.latitude != null && p.longitude != null)
+        pts.push({ ...p, _kind: kind, _key: this._pointKey(kind, p) });
     });
-    (data.incidents || []).forEach(i => {
-      if (i.latitude != null && i.longitude != null)
-        pts.push({ ...i, _kind: "incident" });
-    });
+    add(data.closures, "closure");
+    add(data.incidents, "incident");
+    add(data.webcams, "webcam");
+    add(data.traffic_volume, "volume");
     return pts;
+  }
+
+  // Markørfarge per datapunkt-type
+  _markerColor(p) {
+    if (p._kind === "webcam") return "#2563eb";   // blå
+    if (p._kind === "volume") return "#0891b2";   // turkis
+    return this._statusMeta(p.severity).color;     // veimelding/stenging
+  }
+
+  // Lesbar tittel/undertekst for et kartpunkt avhengig av type
+  _pointTitle(p) {
+    if (p._kind === "webcam") return p.name || "Webkamera";
+    if (p._kind === "volume")
+      return p.volume != null ? `${p.name} – ${p.volume} kjt/t` : (p.name || "Trafikkpunkt");
+    return p.title || "Veimelding";
+  }
+
+  _pointSub(p) {
+    if (p._kind === "volume") return p.road || "";
+    if (p._kind === "webcam") return p.road || "";
+    return p.description || p.location_description || "";
+  }
+
+  _renderMapToolbar(data) {
+    const pts = this._mapPoints(data);
+    if (!pts.length) return "";
+    const n = this._selection ? this._selection.size : 0;
+    return `
+      <div class="map-tools">
+        <div class="map-hint">Klikk en markør på kartet for å velge datapunkter</div>
+        <div class="map-actions">
+          <button class="mt-btn ${this._filterOnly ? "mt-on" : ""}" id="mt-filter"
+            ${n ? "" : "disabled"}>${this._filterOnly ? "Vis alle" : "Vis kun valgte"}${n ? ` (${n})` : ""}</button>
+          ${n ? `<button class="mt-btn" id="mt-reset">Nullstill</button>` : ""}
+        </div>
+      </div>`;
   }
 
   async _setupMap(data) {
@@ -469,30 +577,37 @@ class SvvTrafficCard extends HTMLElement {
       }
     }
 
+    const sel = this._selection || new Set();
+
     // Markører – plasseres på samme projeksjon
     const markers = points.map((p, i) => {
-      const meta = this._statusMeta(p.severity);
+      const color = this._markerColor(p);
       const px = lonToX(p.longitude, zoom) * TILE_SIZE - originX;
       const py = latToY(p.latitude, zoom) * TILE_SIZE - originY;
-      const road = p.road ? `${this._esc(p.road)} · ` : "";
-      const title = `${road}${this._esc(p.title || "Veimelding")}`;
+      const isSel = sel.has(p._key);
+      const title = this._esc(this._pointTitle(p));
       return `
-        <div class="svv-marker" style="left:${px}px;top:${py}px"
+        <div class="svv-marker ${isSel ? "svv-sel" : ""}" style="left:${px}px;top:${py}px"
              data-mk="${i}" tabindex="0" role="button"
              title="${title}">
-          <span class="svv-pin" style="background:${meta.color}"></span>
+          <span class="svv-pin svv-pin-${p._kind}" style="background:${color}"></span>
         </div>`;
     }).join("");
 
     const popups = points.map((p, i) => {
-      const meta = this._statusMeta(p.severity);
+      const color = this._markerColor(p);
       const px = lonToX(p.longitude, zoom) * TILE_SIZE - originX;
       const py = latToY(p.latitude, zoom) * TILE_SIZE - originY;
       const road = p.road ? `<b>${this._esc(p.road)}</b> · ` : "";
+      const sub = this._pointSub(p);
+      const isSel = sel.has(p._key);
       return `
-        <div class="svv-popup" id="popup-${i}" style="left:${px}px;top:${py}px;border-color:${meta.color}">
-          <div class="svv-popup-title">${road}${this._esc(p.title || "Veimelding")}</div>
-          ${p.location_description ? `<div class="svv-popup-sub">${this._esc(p.location_description)}</div>` : ""}
+        <div class="svv-popup" id="popup-${i}" style="left:${px}px;top:${py}px;border-color:${color}">
+          <div class="svv-popup-title">${road}${this._esc(this._pointTitle(p))}</div>
+          ${sub ? `<div class="svv-popup-sub">${this._esc(sub)}</div>` : ""}
+          <button class="svv-popup-sel ${isSel ? "is-sel" : ""}" data-sel="${i}">
+            ${isSel ? "✓ Valgt – fjern" : "Velg dette punktet"}
+          </button>
         </div>`;
     }).join("");
 
@@ -514,6 +629,16 @@ class SvvTrafficCard extends HTMLElement {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
       });
     });
+
+    // Klikk på "Velg"-knapp i popup → toggle utvalg og render på nytt
+    el.querySelectorAll("[data-sel]").forEach(btn => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const i = parseInt(btn.getAttribute("data-sel"), 10);
+        const p = points[i];
+        if (p) { this._togglePoint(p._key); this._render(); }
+      });
+    });
   }
 
   _destroyMap() {
@@ -527,7 +652,8 @@ class SvvTrafficCard extends HTMLElement {
   _attachHandlers() {
     const root = this.shadowRoot;
     const key = this._config.entity;
-    const data = this._getData();
+    // Bruk samme (evt. filtrerte) data som vises, så karusell-indekser stemmer.
+    const data = this._applyFilter(this._getData());
     const cams = (data && data.webcams) || [];
     root.querySelectorAll("[data-nav]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -542,6 +668,22 @@ class SvvTrafficCard extends HTMLElement {
         this._webcamIndex[key] = parseInt(dot.getAttribute("data-cam"), 10);
         this._render();
       });
+    });
+
+    // Kartverktøy: "Vis kun valgte" / "Nullstill"
+    const filterBtn = root.getElementById("mt-filter");
+    if (filterBtn) filterBtn.addEventListener("click", () => {
+      this._filterOnly = !this._filterOnly;
+      this._saveFilterMode();
+      this._render();
+    });
+    const resetBtn = root.getElementById("mt-reset");
+    if (resetBtn) resetBtn.addEventListener("click", () => {
+      this._selection = new Set();
+      this._saveSelection();
+      this._filterOnly = false;
+      this._saveFilterMode();
+      this._render();
     });
   }
 
@@ -618,9 +760,29 @@ class SvvTrafficCard extends HTMLElement {
         padding: 8px 11px; min-width: 150px; max-width: 230px; z-index: 5;
         box-shadow: 0 6px 20px rgba(0,0,0,.18);
         opacity: 0; visibility: hidden; transition: opacity .15s; pointer-events: none; }
-      .svv-popup.open { opacity: 1; visibility: visible; }
+      .svv-popup.open { opacity: 1; visibility: visible; pointer-events: auto; }
       .svv-popup-title { font-size: .8rem; font-weight: 600; line-height: 1.3; }
       .svv-popup-sub { font-size: .72rem; color: var(--secondary-text-color); margin-top: 2px; }
+      .svv-popup-sel { margin-top: 7px; width: 100%; cursor: pointer;
+        font-size: .72rem; font-weight: 600; padding: 5px 8px; border-radius: 7px;
+        border: 1px solid var(--primary-color); color: var(--primary-color);
+        background: transparent; transition: background .12s, color .12s; }
+      .svv-popup-sel:hover { background: color-mix(in srgb, var(--primary-color) 12%, transparent); }
+      .svv-popup-sel.is-sel { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+      .svv-marker.svv-sel .svv-pin { box-shadow: 0 0 0 3px var(--card-background-color),
+        0 0 0 5px var(--primary-color); }
+      /* Verktøylinje for kartutvalg */
+      .map-tools { display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; margin: 8px 22px 0; flex-wrap: wrap; }
+      .map-hint { font-size: .72rem; color: var(--secondary-text-color); }
+      .map-actions { display: flex; gap: 8px; }
+      .mt-btn { cursor: pointer; font-size: .74rem; font-weight: 600; padding: 5px 11px;
+        border-radius: 8px; border: 1px solid var(--divider-color);
+        background: var(--card-background-color); color: var(--primary-text-color);
+        transition: background .12s, border-color .12s; }
+      .mt-btn:hover:not([disabled]) { border-color: var(--primary-color); }
+      .mt-btn[disabled] { opacity: .45; cursor: default; }
+      .mt-btn.mt-on { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
       .svv-attr { position: absolute; right: 0; bottom: 0; z-index: 4;
         font-size: .6rem; color: var(--secondary-text-color);
         background: color-mix(in srgb, var(--card-background-color) 78%, transparent);

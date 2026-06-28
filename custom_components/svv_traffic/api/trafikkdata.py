@@ -34,6 +34,8 @@ _POINTS_QUERY = """
     location {
       roadReference { shortForm }
       coordinates { latLon { lat lon } }
+      county { name }
+      municipality { name }
     }
   }
 }
@@ -105,6 +107,8 @@ class TrafikkdataClient:
             loc = p.get("location") or {}
             coords = (loc.get("coordinates") or {}).get("latLon") or {}
             road_ref = (loc.get("roadReference") or {}).get("shortForm")
+            county = (loc.get("county") or {}).get("name")
+            municipality = (loc.get("municipality") or {}).get("name")
             result.append(
                 {
                     "id": p.get("id"),
@@ -112,6 +116,8 @@ class TrafikkdataClient:
                     "lat": coords.get("lat"),
                     "lon": coords.get("lon"),
                     "road": road_ref,
+                    "county": county,
+                    "municipality": municipality,
                 }
             )
         self._points_cache = result
@@ -136,6 +142,14 @@ class TrafikkdataClient:
             _LOGGER.debug("Klarte ikke hente volum for %s: %s", point["id"], err)
             return None
 
+        # Vis kommunenavn sammen med stedsnavnet når vi har det, så det er
+        # lettere å kjenne igjen hvor punktet er ("Narvigbakken (Kristiansand)").
+        base_name = point.get("name") or point["id"]
+        municipality = point.get("municipality")
+        display_name = (
+            f"{base_name} ({municipality})" if municipality else base_name
+        )
+
         edges = (
             ((data.get("trafficData") or {}).get("volume") or {}).get("byHour")
             or {}
@@ -143,10 +157,12 @@ class TrafikkdataClient:
         if not edges:
             return TrafficVolumePoint(
                 id=point["id"],
-                name=point.get("name") or point["id"],
+                name=display_name,
                 latitude=point.get("lat"),
                 longitude=point.get("lon"),
                 road=point.get("road"),
+                county=point.get("county"),
+                municipality=municipality,
                 period="hour",
             )
 
@@ -163,12 +179,14 @@ class TrafikkdataClient:
 
         return TrafficVolumePoint(
             id=point["id"],
-            name=point.get("name") or point["id"],
+            name=display_name,
             volume=vol,
             coverage=cov,
             latitude=point.get("lat"),
             longitude=point.get("lon"),
             road=point.get("road"),
+            county=point.get("county"),
+            municipality=municipality,
             period="hour",
             measured_at=measured_at,
         )

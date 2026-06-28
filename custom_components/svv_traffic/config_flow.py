@@ -19,6 +19,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SvvApiError, SvvAuthError
@@ -102,6 +103,15 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Radius-steget bruker et kart (LocationSelector) som returnerer en
+            # dict {latitude, longitude, radius(m)} – pakk ut til våre nøkler.
+            if area_type == AREA_TYPE_RADIUS and "location" in user_input:
+                loc = user_input.pop("location") or {}
+                user_input[CONF_LATITUDE] = loc.get("latitude")
+                user_input[CONF_LONGITUDE] = loc.get("longitude")
+                user_input[CONF_RADIUS_KM] = round(
+                    (loc.get("radius") or 25000) / 1000, 1
+                )
             self._base.update(user_input)
             # Trenger vi DATEX? Bare hvis en valgt datatype krever det.
             needs_datex = any(
@@ -118,17 +128,18 @@ class SvvConfigFlow(ConfigFlow, domain=DOMAIN):
         elif area_type == AREA_TYPE_ROAD:
             schema = vol.Schema({vol.Required(CONF_ROAD, default="E18"): str})
         else:  # radius
+            default_location = {
+                "latitude": self.hass.config.latitude,
+                "longitude": self.hass.config.longitude,
+                "radius": 25000,  # meter
+            }
             schema = vol.Schema(
                 {
                     vol.Required(
-                        CONF_LATITUDE, default=self.hass.config.latitude
-                    ): vol.Coerce(float),
-                    vol.Required(
-                        CONF_LONGITUDE, default=self.hass.config.longitude
-                    ): vol.Coerce(float),
-                    vol.Required(CONF_RADIUS_KM, default=25): vol.All(
-                        vol.Coerce(float), vol.Range(min=1, max=500)
-                    ),
+                        "location", default=default_location
+                    ): selector.LocationSelector(
+                        selector.LocationSelectorConfig(radius=True)
+                    )
                 }
             )
         return self.async_show_form(

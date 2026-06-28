@@ -18,6 +18,7 @@
         "data": {
           "county": "County",
           "road": "Road number (e.g. E18, Rv9)",
+          "location": "Pick a point and radius on the map",
           "latitude": "Latitude",
           "longitude": "Longitude",
           "radius_km": "Radius (km)"

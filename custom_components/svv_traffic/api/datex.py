@@ -71,6 +71,48 @@ def _find_county(rec: ET.Element) -> str | None:
     return fallback
 
 
+def _find_comment(rec: ET.Element) -> str | None:
+    """Hent den publikumsrettede meldingsteksten fra en DATEX-record.
+
+    Teksten ligger nestet som ``generalPublicComment/comment/values/value`` og
+    ikke som direkte tekst. Et naivt søk etter "value" treffer dessuten et
+    generisk kildefelt (``<value>NPRA</value>``) først, så vi navigerer
+    målrettet inn i kommentar-elementet. DATEX skiller setninger med "|", som
+    vi gjør om til " · " for lesbarhet.
+    """
+    for tag in ("generalPublicComment", "comment"):
+        for el in rec.iter():
+            if _localname(el.tag) == tag:
+                txt = _find_text(el, "value")
+                if txt:
+                    return txt.replace("|", " · ").strip()
+    return None
+
+
+# Lesbare norske titler når sted/veinavn mangler på en record.
+_RECORD_TYPE_LABEL = {
+    "MaintenanceWorks": "Vegarbeid",
+    "ConstructionWorks": "Vegarbeid",
+    "Roadworks": "Vegarbeid",
+    "Accident": "Ulykke",
+    "AbnormalTraffic": "Kø / trafikkavvik",
+    "PoorEnvironmentConditions": "Kjøreforhold",
+    "WeatherRelatedRoadConditions": "Kjøreforhold",
+    "RoadOrCarriagewayOrLaneManagement": "Trafikkregulering",
+    "GeneralNetworkManagement": "Trafikkmelding",
+    "SpeedManagement": "Fartsregulering",
+    "ReroutingManagement": "Omkjøring",
+    "GeneralInstructionOrMessageToRoadUsers": "Trafikkmelding",
+    "InfrastructureDamageObstruction": "Hindring i vegen",
+    "EnvironmentalObstruction": "Hindring i vegen",
+    "GeneralObstruction": "Hindring i vegen",
+    "AnimalPresenceObstruction": "Dyr i vegen",
+    "VehicleObstruction": "Kjøretøy-hindring",
+    "PublicEvent": "Arrangement",
+    "TransitInformation": "Trafikkmelding",
+}
+
+
 def _parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -160,10 +202,8 @@ class DatexClient:
                 rec_type = rec_type.split(":")[-1]
                 category = _CATEGORY_MAP.get(rec_type, "other")
 
-                comment = _find_text(rec, "comment", "generalPublicComment", "value")
-                location = _find_text(
-                    rec, "locationDescription", "roadName", "areaName"
-                )
+                comment = _find_comment(rec)
+                location = _find_text(rec, "locationDescription", "roadName")
                 # Prioriter veinummer (E39, R9) over veinavn for konsistent
                 # filtrering og veivalg; fall tilbake til navn kun om nr. mangler.
                 road = _find_text(rec, "roadNumber") or _find_text(rec, "roadName")
@@ -187,7 +227,9 @@ class DatexClient:
                 incidents.append(
                     Incident(
                         id=f"{sit_id}:{rec.get('id', len(incidents))}",
-                        title=location or rec_type or "Veimelding",
+                        title=location
+                        or _RECORD_TYPE_LABEL.get(rec_type)
+                        or "Veimelding",
                         description=comment or "",
                         severity=severity,
                         category="closure" if is_closure else category,

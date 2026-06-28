@@ -51,7 +51,8 @@ from .models import AreaData
 _LOGGER = logging.getLogger(__name__)
 
 # Hvor mange trafikkpunkter vi henter volum for per oppdatering (ytelse).
-_MAX_VOLUME_POINTS = 15
+# Etter fylkes-/områdefiltrering blir det normalt langt færre enn dette.
+_MAX_VOLUME_POINTS = 40
 
 
 class SvvDataUpdateCoordinator(DataUpdateCoordinator[AreaData]):
@@ -150,10 +151,17 @@ class SvvDataUpdateCoordinator(DataUpdateCoordinator[AreaData]):
             if matches_area(
                 self.config,
                 road=p.get("road"),
+                county=p.get("county"),
                 latitude=p.get("lat"),
                 longitude=p.get("lon"),
             )
         ]
+        _LOGGER.debug(
+            "Trafikkmengde for '%s': %d punkter totalt, %d innenfor området",
+            self.config.get(CONF_AREA_NAME, "Område"),
+            len(points),
+            len(in_area),
+        )
         for p in in_area[:_MAX_VOLUME_POINTS]:
             vp = await self._trafikkdata.async_get_volume(p)
             if vp is not None:

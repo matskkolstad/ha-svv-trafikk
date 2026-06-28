@@ -61,6 +61,8 @@ class TrafficVolumePoint:
     latitude: float | None = None
     longitude: float | None = None
     road: str | None = None
+    county: str | None = None
+    municipality: str | None = None
     period: str | None = None  # f.eks. "hour", "day"
     measured_at: datetime | None = None
 
@@ -73,6 +75,8 @@ class TrafficVolumePoint:
             "latitude": self.latitude,
             "longitude": self.longitude,
             "road": self.road,
+            "county": self.county,
+            "municipality": self.municipality,
             "period": self.period,
             "measured_at": self.measured_at.isoformat() if self.measured_at else None,
         }

@@ -4,6 +4,28 @@ Alle vesentlige endringer i dette prosjektet dokumenteres her.
 Formatet følger [Keep a Changelog](https://keepachangelog.com/),
 og prosjektet bruker [semantisk versjonering](https://semver.org/lang/no/).
 
+## [0.4.0] – 2026-06-28
+
+### Rettet
+- **Trafikkmengde viste feil områder.** Trafikkpunktene ble ikke filtrert på fylke,
+  så et fylke-område kunne vise punkter fra hele landet (f.eks. E18 i Oslo/Vestfold
+  for et Agder-område). Punktene henter nå fylke/kommune og filtreres korrekt.
+- **Veimeldinger var uinformative.** Tittelen viste den engelske record-typen
+  («MaintenanceWorks») og «beskrivelsen» viste «NPRA» (kilden). Tittelen er nå et
+  lesbart norsk navn (Vegarbeid, Fartsregulering, Ulykke …) når sted mangler, og
+  beskrivelsen henter den faktiske meldingsteksten.
+- Veinummer fra de to datakildene forenes nå (DATEX «R9» ↔ Trafikkdata «RV9» osv.),
+  slik at veivalg fungerer på tvers av kilder.
+
+### Lagt til
+- **Kart med nål og radius i oppsettveiviseren** for radius-områder: dropp en nål og
+  sett radius direkte på et kart («data nær meg»).
+- **Interaktivt datapunkt-kart i kortet.** Kartet viser nå alle datapunkter
+  (veimeldinger, stengninger, webkamera og trafikkmengde) som fargekodede markører.
+  Klikk en markør for å velge punkter, og bruk «Vis kun valgte» for å vise bare de
+  valgte i kortet. Utvalget huskes per nettleser.
+- Trafikkmengde-punkter viser nå kommunenavn for lettere gjenkjenning.
+
 ## [0.3.0] – 2026-06-28
 
 ### Lagt til

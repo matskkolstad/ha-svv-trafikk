@@ -145,9 +145,14 @@ rutenett ved siden av hverandre – nyttig på brede dashbord. Standard `vertica
 stabler seksjonene under hverandre.
 
 **Kart.** Med `show_map: true` vises et kart (OpenStreetMap/CARTO, ingen API-nøkkel
-nødvendig) som plotter alle aktive veimeldinger og stengninger som fargekodede
-markører. Klikk på en markør for å se vei og beskrivelse. Kartbiblioteket lastes
-kun når kartet faktisk er aktivert.
+nødvendig) som plotter alle datapunkter – veimeldinger, stengninger, webkamera og
+trafikkmengde – som fargekodede markører. Klikk på en markør for å se detaljer og
+for å **velge punktet**. Med knappen **«Vis kun valgte»** viser kortet kun de valgte
+datapunktene. Utvalget huskes per nettleser. Kartrendereren er avhengighetsfri og
+lastes kun når kartet er aktivert.
+
+**Område på kart.** Velger du områdetype **radius** i oppsettet, plasserer du et punkt
+og radius direkte på et kart – nyttig for «trafikkdata nær meg».
 
 ## Entiteter
 
